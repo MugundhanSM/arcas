@@ -1,0 +1,42 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+pydantic
+pydantic-settings
+sqlalchemy
+psycopg2-binary
+alembic
+requests
+semgrep
+tree-sitter
+tree-sitter-python
+
+# extra grammars, any subset works
+tree-sitter-javascript
+tree-sitter-typescript
+tree-sitter-java
+tree-sitter-go
+tree-sitter-rust
+tree-sitter-c
+tree-sitter-cpp
+tree-sitter-c-sharp
+tree-sitter-ruby
+tree-sitter-php
+tree-sitter-bash
+langgraph
+langchain-core
+
+websockets
+
+python-multipart
+
+# Optional. Everything works without these, there is a simpler fallback for each.
+# python-jose[cryptography]   # JWT
+# presidio-analyzer           # PII detection with NER
+# presidio-anonymizer
+# langgraph-checkpoint-redis  # durable graph state
+# passlib[bcrypt]             # password hashing
+# redis                       # session memory, rate limiting
+# chromadb                    # vector search for RAG
+# pylint
+# opentelemetry-sdk           # tracing

@@ -1,0 +1,18 @@
+target-version = "py311"
+line-length = 100
+
+[lint]
+select = [
+    "E9",   # syntax errors
+    "F",    # pyflakes: undefined names, unused imports, etc.
+    "B",    # flake8-bugbear: likely bugs
+    "I",    # import sorting
+]
+ignore = [
+    "E501",  # line length handled by formatter, not gated
+    "B008",  # FastAPI uses function calls in argument defaults (Depends())
+]
+
+[lint.per-file-ignores]
+"tests/*" = ["B011"]
+"app/tests/*" = ["F", "B"]   # manual scripts

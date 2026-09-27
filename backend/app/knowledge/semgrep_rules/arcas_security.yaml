@@ -1,0 +1,404 @@
+rules:
+  # Offline rules so scans still work when the Semgrep registry is unreachable.
+
+  # Python
+  - id: arcas-python-subprocess-shell-true
+    languages: [python]
+    severity: ERROR
+    message: >-
+      Command injection: subprocess called with shell=True passes the argument
+      to a shell. Use a list of arguments and shell=False.
+    metadata:
+      cwe: "CWE-78: OS Command Injection"
+      owasp: "A03:2021 Injection"
+      category: security
+    patterns:
+      - pattern-either:
+          - pattern: subprocess.call(..., shell=True, ...)
+          - pattern: subprocess.run(..., shell=True, ...)
+          - pattern: subprocess.Popen(..., shell=True, ...)
+          - pattern: subprocess.check_output(..., shell=True, ...)
+          - pattern: subprocess.check_call(..., shell=True, ...)
+
+  - id: arcas-python-os-system
+    languages: [python]
+    severity: ERROR
+    message: >-
+      Command injection: os.system executes a shell command string.
+    metadata:
+      cwe: "CWE-78: OS Command Injection"
+      owasp: "A03:2021 Injection"
+      category: security
+    pattern-either:
+      - pattern: os.system(...)
+      - pattern: os.popen(...)
+
+  - id: arcas-python-sql-string-concat
+    languages: [python]
+    severity: ERROR
+    message: >-
+      SQL injection: the query is assembled by string concatenation or
+      interpolation. Use parameterised queries with placeholders.
+    metadata:
+      cwe: "CWE-89: SQL Injection"
+      owasp: "A03:2021 Injection"
+      category: security
+    patterns:
+      - pattern-either:
+          - pattern: $CUR.execute($QUERY)
+          - pattern: $CUR.executemany($QUERY)
+      - pattern-not: $CUR.execute("...")
+      - pattern-not: $CUR.executemany("...")
+
+  - id: arcas-python-insecure-deserialization
+    languages: [python]
+    severity: ERROR
+    message: >-
+      Insecure deserialization: pickle/marshal/shelve execute arbitrary code
+      when loading untrusted data. Use JSON for untrusted input.
+    metadata:
+      cwe: "CWE-502: Deserialization of Untrusted Data"
+      owasp: "A08:2021 Software and Data Integrity Failures"
+      category: security
+    pattern-either:
+      - pattern: pickle.loads(...)
+      - pattern: pickle.load(...)
+      - pattern: marshal.loads(...)
+      - pattern: cPickle.loads(...)
+
+  - id: arcas-python-yaml-unsafe-load
+    languages: [python]
+    severity: ERROR
+    message: >-
+      Insecure deserialization: yaml.load without SafeLoader can construct
+      arbitrary Python objects. Use yaml.safe_load.
+    metadata:
+      cwe: "CWE-502: Deserialization of Untrusted Data"
+      owasp: "A08:2021 Software and Data Integrity Failures"
+      category: security
+    patterns:
+      - pattern: yaml.load($X)
+
+  - id: arcas-python-code-injection-eval
+    languages: [python]
+    severity: ERROR
+    message: >-
+      Code injection: eval/exec/compile evaluate arbitrary source at runtime.
+    metadata:
+      cwe: "CWE-94: Code Injection"
+      owasp: "A03:2021 Injection"
+      category: security
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: exec(...)
+
+  - id: arcas-python-weak-hash
+    languages: [python]
+    severity: WARNING
+    message: >-
+      Weak cryptographic hash: MD5 and SHA-1 are broken for security use.
+      Use SHA-256 or better; for passwords use bcrypt/argon2/scrypt.
+    metadata:
+      cwe: "CWE-327: Use of a Broken or Risky Cryptographic Algorithm"
+      owasp: "A02:2021 Cryptographic Failures"
+      category: security
+    pattern-either:
+      - pattern: hashlib.md5(...)
+      - pattern: hashlib.sha1(...)
+
+  - id: arcas-python-insecure-random
+    languages: [python]
+    severity: WARNING
+    message: >-
+      Insecure randomness: the random module is not cryptographically secure.
+      Use the secrets module for tokens, keys and nonces.
+    metadata:
+      cwe: "CWE-330: Use of Insufficiently Random Values"
+      owasp: "A02:2021 Cryptographic Failures"
+      category: security
+    pattern-either:
+      - pattern: random.random()
+      - pattern: random.choice(...)
+      - pattern: random.randint(...)
+      - pattern: random.randrange(...)
+
+  - id: arcas-python-hardcoded-secret
+    languages: [python]
+    severity: ERROR
+    message: >-
+      Hardcoded credential: secrets in source are exposed to anyone with repo
+      access. Load them from the environment or a secret manager.
+    metadata:
+      cwe: "CWE-798: Use of Hard-coded Credentials"
+      owasp: "A07:2021 Identification and Authentication Failures"
+      category: security
+    patterns:
+      - pattern-either:
+          - pattern: $KEY = "..."
+      - metavariable-regex:
+          metavariable: $KEY
+          regex: (?i).*(password|passwd|secret|api_key|apikey|token|private_key|access_key).*
+      - pattern-not: $KEY = ""
+
+  - id: arcas-python-tls-verify-disabled
+    languages: [python]
+    severity: ERROR
+    message: >-
+      Certificate validation disabled: verify=False permits man-in-the-middle
+      interception.
+    metadata:
+      cwe: "CWE-295: Improper Certificate Validation"
+      owasp: "A02:2021 Cryptographic Failures"
+      category: security
+    pattern-either:
+      - pattern: requests.get(..., verify=False, ...)
+      - pattern: requests.post(..., verify=False, ...)
+      - pattern: requests.put(..., verify=False, ...)
+      - pattern: requests.delete(..., verify=False, ...)
+      - pattern: requests.request(..., verify=False, ...)
+
+  - id: arcas-python-path-traversal
+    languages: [python]
+    severity: WARNING
+    message: >-
+      Possible path traversal: a caller-supplied value is concatenated into a
+      filesystem path. Normalise and confirm the result stays inside the
+      intended directory.
+    metadata:
+      cwe: "CWE-22: Path Traversal"
+      owasp: "A01:2021 Broken Access Control"
+      category: security
+    patterns:
+      - pattern-either:
+          - pattern: open("..." + $X, ...)
+          - pattern: open(f"...{$X}...", ...)
+          - pattern: open("...".format(...), ...)
+
+  - id: arcas-python-ssrf
+    languages: [python]
+    severity: WARNING
+    message: >-
+      Possible SSRF: a request target is built from a caller-supplied value.
+      Validate the destination against an allow-list.
+    metadata:
+      cwe: "CWE-918: Server-Side Request Forgery"
+      owasp: "A10:2021 Server-Side Request Forgery"
+      category: security
+    patterns:
+      - pattern-either:
+          - pattern: requests.get($URL, ...)
+          - pattern: requests.post($URL, ...)
+          - pattern: requests.request(..., $URL, ...)
+          - pattern: urllib.request.urlopen($URL, ...)
+          - pattern: httpx.get($URL, ...)
+      - pattern-not: requests.get("...", ...)
+      - pattern-not: requests.post("...", ...)
+      - pattern-not: urllib.request.urlopen("...", ...)
+      - pattern-not: httpx.get("...", ...)
+
+  - id: arcas-python-xss-html-concat
+    languages: [python]
+    severity: WARNING
+    message: >-
+      Possible reflected XSS: HTML markup is built by concatenating or
+      interpolating a caller-supplied value without escaping. Use a template
+      engine with autoescaping, or html.escape().
+    metadata:
+      cwe: "CWE-79: Cross-site Scripting"
+      owasp: "A03:2021 Injection"
+      category: security
+    patterns:
+      - pattern: $HTML + $X
+      # $HTML must look like markup.
+      - metavariable-regex:
+          metavariable: $HTML
+          regex: (?s)^['\"].*<\s*/?\s*[a-zA-Z][^>]*>.*['\"]$
+
+  - id: arcas-python-xss-markup
+    languages: [python]
+    severity: WARNING
+    message: >-
+      Possible XSS: markup is built from a caller-supplied value without
+      escaping. Use the template engine's autoescaping.
+    metadata:
+      cwe: "CWE-79: Cross-site Scripting"
+      owasp: "A03:2021 Injection"
+      category: security
+    pattern-either:
+      - pattern: flask.Markup(...)
+      - pattern: django.utils.safestring.mark_safe(...)
+      - pattern: render_template_string(...)
+
+  - id: arcas-python-assert-in-production
+    languages: [python]
+    severity: INFO
+    message: >-
+      assert statements are removed under python -O, so security checks
+      written as asserts silently disappear in optimised builds.
+    metadata:
+      cwe: "CWE-617: Reachable Assertion"
+      category: security
+    pattern: assert $X
+
+  # JavaScript
+  - id: arcas-js-eval
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: "Code injection: eval / Function constructor executes arbitrary code."
+    metadata:
+      cwe: "CWE-94: Code Injection"
+      owasp: "A03:2021 Injection"
+      category: security
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: new Function(...)
+
+  - id: arcas-js-innerhtml
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      Possible XSS: assigning to innerHTML renders untrusted markup. Use
+      textContent, or sanitise first.
+    metadata:
+      cwe: "CWE-79: Cross-site Scripting"
+      owasp: "A03:2021 Injection"
+      category: security
+    pattern-either:
+      - pattern: $EL.innerHTML = $X
+      - pattern: $EL.outerHTML = $X
+      - pattern: document.write(...)
+
+  - id: arcas-js-child-process-exec
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: "Command injection: child_process.exec runs its argument in a shell."
+    metadata:
+      cwe: "CWE-78: OS Command Injection"
+      owasp: "A03:2021 Injection"
+      category: security
+    pattern-either:
+      - pattern: child_process.exec(...)
+      - pattern: exec($CMD, ...)
+
+  - id: arcas-js-insecure-random
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      Insecure randomness: Math.random is not cryptographically secure. Use
+      crypto.randomBytes / crypto.getRandomValues.
+    metadata:
+      cwe: "CWE-330: Use of Insufficiently Random Values"
+      category: security
+    pattern: Math.random()
+
+  # Java
+  - id: arcas-java-sql-concat
+    languages: [java]
+    severity: ERROR
+    message: >-
+      SQL injection: the statement is built by concatenation. Use
+      PreparedStatement with bound parameters.
+    metadata:
+      cwe: "CWE-89: SQL Injection"
+      owasp: "A03:2021 Injection"
+      category: security
+    patterns:
+      - pattern-either:
+          - pattern: $S.executeQuery($QUERY)
+          - pattern: $S.executeUpdate($QUERY)
+          - pattern: $S.execute($QUERY)
+      - pattern-not: $S.executeQuery("...")
+      - pattern-not: $S.executeUpdate("...")
+      - pattern-not: $S.execute("...")
+      # PreparedStatement bound at creation is the safe form.
+      - pattern-not: $S.executeQuery()
+      - pattern-not: $S.executeUpdate()
+
+  - id: arcas-java-runtime-exec
+    languages: [java]
+    severity: ERROR
+    message: "Command injection: Runtime.exec runs an external command."
+    metadata:
+      cwe: "CWE-78: OS Command Injection"
+      owasp: "A03:2021 Injection"
+      category: security
+    pattern-either:
+      - pattern: Runtime.getRuntime().exec(...)
+      - pattern: (Runtime $R).exec(...)
+
+  - id: arcas-java-weak-hash
+    languages: [java]
+    severity: WARNING
+    message: "Weak cryptographic hash: MD5/SHA-1 are broken for security use."
+    metadata:
+      cwe: "CWE-327: Use of a Broken or Risky Cryptographic Algorithm"
+      owasp: "A02:2021 Cryptographic Failures"
+      category: security
+    patterns:
+      - pattern: MessageDigest.getInstance($ALG)
+      - metavariable-regex:
+          metavariable: $ALG
+          regex: (?i)"(md5|sha-?1)"
+
+  - id: arcas-java-deserialization
+    languages: [java]
+    severity: ERROR
+    message: >-
+      Insecure deserialization: readObject on untrusted input can execute
+      arbitrary code.
+    metadata:
+      cwe: "CWE-502: Deserialization of Untrusted Data"
+      owasp: "A08:2021 Software and Data Integrity Failures"
+      category: security
+    pattern: (ObjectInputStream $O).readObject()
+
+  # C / C++
+  - id: arcas-c-unsafe-string-functions
+    languages: [c, cpp]
+    severity: ERROR
+    message: >-
+      Buffer overflow: strcpy/strcat/sprintf/gets perform no bounds checking.
+      Use the length-bounded variants.
+    metadata:
+      cwe: "CWE-120: Buffer Copy without Checking Size of Input"
+      category: security
+    pattern-either:
+      - pattern: strcpy(...)
+      - pattern: strcat(...)
+      - pattern: sprintf(...)
+      - pattern: gets(...)
+
+  - id: arcas-c-system-call
+    languages: [c, cpp]
+    severity: ERROR
+    message: "Command injection: system() passes its argument to a shell."
+    metadata:
+      cwe: "CWE-78: OS Command Injection"
+      category: security
+    pattern: system(...)
+
+  # Go
+  - id: arcas-go-command-exec
+    languages: [go]
+    severity: ERROR
+    message: >-
+      Command injection: a shell is invoked with a constructed command string.
+    metadata:
+      cwe: "CWE-78: OS Command Injection"
+      owasp: "A03:2021 Injection"
+      category: security
+    pattern-either:
+      - pattern: exec.Command("sh", "-c", ...)
+      - pattern: exec.Command("bash", "-c", ...)
+
+  - id: arcas-go-sql-concat
+    languages: [go]
+    severity: ERROR
+    message: "SQL injection: the query is built by concatenation or Sprintf."
+    metadata:
+      cwe: "CWE-89: SQL Injection"
+      owasp: "A03:2021 Injection"
+      category: security
+    pattern-either:
+      - pattern: $DB.Query(fmt.Sprintf(...))
+      - pattern: $DB.Exec(fmt.Sprintf(...))
