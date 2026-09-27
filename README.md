@@ -4,7 +4,7 @@
 
 I built ARCAS for my M.Tech (AI/ML) dissertation at BITS Pilani. You paste in some code, and a set of agents reviews it: they map its structure, score its quality, scan it for security issues, rate the overall risk, suggest fixes, write documentation and generate tests. Static analysis tools do the parts that should be exact. The LLM does the parts that need judgement, and guardrails sit on both sides of it.
 
-![ARCAS architecture](docs/architecture.png)
+![ARCAS architecture](docs/ARCAS_Architecture.png)
 
 It runs without an LLM too. Every agent that needs a model has a deterministic fallback, so you can try the whole pipeline locally without any API keys.
 
