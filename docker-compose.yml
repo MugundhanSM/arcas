@@ -1,0 +1,102 @@
+version: '3.9'
+
+services:
+
+  postgres:
+    image: postgres:16
+    container_name: arcas_postgres
+    environment:
+      POSTGRES_DB: arcas
+      POSTGRES_USER: arcas_user
+      POSTGRES_PASSWORD: arcas_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U arcas_user -d arcas"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: arcas_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # optional vector store for RAG
+  chromadb:
+    image: chromadb/chroma:0.5.20
+    container_name: arcas_chromadb
+    ports:
+      - "8001:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    environment:
+      IS_PERSISTENT: "TRUE"
+      ANONYMIZED_TELEMETRY: "FALSE"
+    healthcheck:
+      test: ["CMD", "/bin/bash", "-c", "timeout 2 bash -c '</dev/tcp/localhost/8000'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    container_name: arcas_backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      chromadb:
+        condition: service_started
+    environment:
+      APP_NAME: ARCAS
+      APP_VERSION: "1.0.0"
+      DEBUG: "false"
+      DATABASE_URL: postgresql://arcas_user:arcas_password@postgres:5432/arcas
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      AUTH_REQUIRED: ${AUTH_REQUIRED:-false}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production-please-rotate-this-secret}
+      RATE_LIMIT_REQUESTS: ${RATE_LIMIT_REQUESTS:-60}
+      LLM_API_URL: ${LLM_API_URL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      UVICORN_WORKERS: ${UVICORN_WORKERS:-2}
+      LLM_MAX_CONCURRENCY: ${LLM_MAX_CONCURRENCY:-4}
+      CORS_ORIGINS: "http://localhost:5173,http://localhost:3000,http://localhost"
+      # RAG
+      ENABLE_CHROMADB: ${ENABLE_CHROMADB:-false}
+      CHROMADB_PATH: ${CHROMADB_PATH:-/data/chroma}
+      # input guardrails
+      ENABLE_INJECTION_LLM_CHECK: ${ENABLE_INJECTION_LLM_CHECK:-false}
+      ENABLE_CANARY_TOKENS: ${ENABLE_CANARY_TOKENS:-true}
+      # output guardrails
+      ENABLE_SELFCHECK: ${ENABLE_SELFCHECK:-false}
+      SELFCHECK_SAMPLES: ${SELFCHECK_SAMPLES:-3}
+      ENABLE_CHECKPOINTING: ${ENABLE_CHECKPOINTING:-true}
+      # tracing
+      ENABLE_TELEMETRY: ${ENABLE_TELEMETRY:-false}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      # set to true on machines without internet so Semgrep uses the bundled rules
+      ARCAS_SEMGREP_OFFLINE: ${ARCAS_SEMGREP_OFFLINE:-}
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build: ./frontend
+    container_name: arcas_frontend
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+
+volumes:
+  postgres_data:
+  chroma_data:
